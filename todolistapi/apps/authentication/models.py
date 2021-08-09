@@ -4,6 +4,9 @@ from django.contrib.auth.models import (
 from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.utils import timezone
 from todolistapi.apps.helpers.models import TrackingModel
+import jwt
+from datetime import datetime
+from django.conf import settings
 
 class MyUserManager(UserManager):
 
@@ -15,7 +18,7 @@ class MyUserManager(UserManager):
             raise ValueError('the given email must be set')
 
         email = self.normalize_email(email)
-        username = self.nomalize_username(username)
+        username = self.model.normalize_username(username)
         user = self.model(username=username, email=email, **extra_fields)
         user.set_password(password)
         user.save(using=self._db)
@@ -57,9 +60,18 @@ class User(AbstractBaseUser, PermissionsMixin,TrackingModel):
     objects = MyUserManager()
 
     EMAIL_FIELD = 'email'
-    USERNAME_FIELD = 'username'
-    REQUIRED_FIELDS = ['user']
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
 
     @property
     def token(self):
-        pass
+        token = jwt.encode(
+            {
+                'username': self.username, 
+                'email': self.email, 
+                'exp': datetime.utcnow() + timezone.timedelta(hours=24)
+            },
+            settings.SECRET_KEY,
+            algorithm='HS256',)
+        
+        return token
